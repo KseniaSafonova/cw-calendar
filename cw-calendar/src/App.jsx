@@ -3,37 +3,37 @@ import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import { supabase } from "./supabaseClient"
-import localeRu from "@fullcalendar/core/locales/ru";
 import './App.css';
 
 export default function App() {
   const [dancer, setDancer] = useState(null)
   const [events, setEvents] = useState([])
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedDateWeekend, setSelectedDateWeekend] = useState(null);
 
-  const slotsWeek = [
-    "19:00",
-    "19:30",
-    "20:00"
-  ];
-  const slotsWeekend = [
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-    "19:00",
-    "19:30",
-    "20:00"
-  ];
+  const SLOTS = {
+    week: ["19:00", "19:30", "20:00"],
+    weekend: [
+      "12:00",
+      "13:00",
+      "14:00",
+      "15:00",
+      "16:00",
+      "17:00",
+      "18:00",
+      "19:00",
+      "20:00"
+    ]
+  };
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token")
-    if (token) loadDancer(token)
-  }, [])
+    const token = new URLSearchParams(window.location.search).get("token");
+
+    if (token) {
+      loadDancer(token);
+    }
+
+    loadCalendar();
+  }, []);
 
   async function loadDancer(token) {
     const { data } = await supabase
@@ -44,10 +44,6 @@ export default function App() {
 
     setDancer(data || null)
   }
-
-  useEffect(() => {
-    loadCalendar()
-  }, [])
 
   async function loadCalendar() {
     const { data, error } = await supabase
@@ -62,7 +58,7 @@ export default function App() {
     `)
 
     if (error) {
-      console.log(error)
+      console.error(error);
       return
     }
 
@@ -86,7 +82,6 @@ export default function App() {
     setEvents(events)
   }
 
-
   async function toggleSlot(start_time) {
     if (!dancer) {
       alert("Нет пользователя")
@@ -95,14 +90,7 @@ export default function App() {
 
     const { data, error } = await supabase
       .from("availability")
-      .select(`
-    note_id,
-    start_time,
-    dancer_id,
-    dancers (
-      name
-    )
-  `)
+      .select(`note_id`)
       .eq("dancer_id", dancer.id)
       .eq("start_time", start_time);
 
@@ -135,45 +123,23 @@ export default function App() {
         {dancer ? `(${dancer.name})` : "(неопознанный объект)"}
       </h2>
       {selectedDate && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 100px)",
-            gap: 10,
-            marginTop: 20,
-            marginBottom: 20
-          }}
-        >
-          {slotsWeek.map((time) => (
-            <button className="button"
+        <div className={'times'}>
+          {(selectedDate.isWeekend
+            ? SLOTS.weekend
+            : SLOTS.week
+          ).map((time) => (
+            <button
+              className="button"
               key={time}
-              onClick={() => toggleSlot(`${selectedDate}T${time}:00`)}
-            >
+              onClick={() =>
+                toggleSlot(`${selectedDate.date}T${time}:00`)
+              }>
               {time}
             </button>
           ))}
         </div>
       )}
-      {selectedDateWeekend && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(10, 100px)",
-            gap: 10,
-            marginTop: 20,
-            marginBottom: 20
-          }}
-        >
-          {slotsWeekend.map((time) => (
-            <button className="button"
-              key={time}
-              onClick={() => toggleSlot(`${selectedDateWeekend}T${time}:00`)}
-            >
-              {time}
-            </button>
-          ))}
-        </div>
-      )}
+
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridWeek"
@@ -182,26 +148,19 @@ export default function App() {
         events={events}
         height={500}
         eventTimeFormat={{
-          hour: '2-digit',
-          minute: '2-digit',
+          hour: "2-digit",
+          minute: "2-digit",
           meridiem: false,
-          hour12: false
+          hour12: false,
         }}
-        timeZone='Europe/Moscow'
+        timeZone="Europe/Moscow"
         dateClick={(info) => {
-          const dayOfWeek = info.date.getDay();
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
-            setSelectedDateWeekend(info.dateStr)
-            setSelectedDate(null);
-          } else {
-            setSelectedDate(info.dateStr)
-            setSelectedDateWeekend(null)
-          }
-
+          setSelectedDate({
+            date: info.dateStr,
+            isWeekend: [0, 6].includes(info.date.getDay()),
+          });
         }}
-        eventClick={(info) => toggleSlot(info.event.startStr)}
-      />
-
+        eventClick={(info) => toggleSlot(info.event.startStr)} />
     </div>
-  )
+  );
 }
