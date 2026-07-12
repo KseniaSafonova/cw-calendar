@@ -37,7 +37,13 @@ export default function App() {
   }, [isMobile]);
 
   async function openDay(date) {
-    if (!dancer) return;
+    console.log("openDay start", date, dancer);
+
+    if (!dancer) {
+      console.log("Нет dancer");
+      return;
+    }
+
 
     const { data, error } = await supabase
       .from("availability")
