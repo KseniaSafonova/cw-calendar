@@ -329,6 +329,7 @@ export default function App() {
         }}
         timeZone="Europe/Moscow"
         dateClick={(info) => {
+          console.log("click date", info.dateStr);
           openDay(info.dateStr);
         }}
         eventClick={(info) => {
