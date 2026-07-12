@@ -1,17 +1,67 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import { supabase } from "./supabaseClient"
 import './App.css';
+import listPlugin from "@fullcalendar/list";
 
 export default function App() {
   const [dancer, setDancer] = useState(null)
   const [events, setEvents] = useState([])
   const [selectedDate, setSelectedDate] = useState(null);
+  const [mySlots, setMySlots] = useState([]);
+  const [allDayUnavailable, setAllDayUnavailable] = useState(false);
 
   const SLOTS = ["12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
     "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"]
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", onResize);
+
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const calendarRef = useRef(null);
+
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+
+    api.changeView(isMobile ? "dayGridDay" : "dayGridWeek");
+  }, [isMobile]);
+
+  async function openDay(date) {
+    if (!dancer) return;
+
+    const { data, error } = await supabase
+      .from("availability")
+      .select("start_time, all_day_unavailable")
+      .eq("dancer_id", dancer.id)
+      .eq("date", date);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setSelectedDate({ date });
+
+    setMySlots(
+      data
+        .filter(row => !row.all_day_unavailable)
+        .map(row => row.start_time.slice(11, 16))
+    );
+
+    setAllDayUnavailable(
+      data.some(row => row.all_day_unavailable)
+    );
+  }
 
   async function loadDancer(token) {
     const { data } = await supabase
@@ -159,6 +209,8 @@ export default function App() {
         .delete()
         .eq("note_id", existing.note_id);
 
+      setMySlots(prev => prev.filter(t => t !== time));
+
       loadCalendar();
       return;
 
@@ -177,6 +229,8 @@ export default function App() {
         date,
         all_day_unavailable: false,
       });
+
+    setMySlots(prev => [...prev, time]);
 
     loadCalendar();
   }
@@ -209,6 +263,7 @@ export default function App() {
         .from("availability")
         .delete()
         .eq("note_id", data[0].note_id);
+      setAllDayUnavailable(false);
     } else {
       await supabase
         .from("availability")
@@ -219,8 +274,10 @@ export default function App() {
           all_day_unavailable: true,
         });
     }
-
+    setAllDayUnavailable(true);
+    setMySlots([]);
     loadCalendar();
+
   }
 
   return (
@@ -234,30 +291,36 @@ export default function App() {
 
           {SLOTS.map((time) => (
             <button
-              className="button"
               key={time}
+              className={`button ${mySlots.includes(time) ? "active" : ""}`}
               onClick={() => toggleSlot(selectedDate.date, time)}
             >
+              {mySlots.includes(time) ? "✅ " : ""}
               {time}
             </button>
           ))}
-
           <button
-            className="button unavailable"
+            className={`button unavailable ${allDayUnavailable ? "active" : ""}`}
             onClick={() => toggleAllDay(selectedDate.date)}
           >
+            {allDayUnavailable ? "✅ " : ""}
             ❌ Не могу совсем
           </button>
 
         </div>
       )}
       <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridWeek"
+        ref={calendarRef}
+        plugins={[
+          dayGridPlugin,
+          interactionPlugin,
+          listPlugin
+        ]}
+        initialView={isMobile ? "dayGridDay" : "dayGridWeek"}
         firstDay={1}
         selectable={true}
         events={events}
-        height={500}
+        height={isMobile ? "auto" : 500}
         eventTimeFormat={{
           hour: "2-digit",
           minute: "2-digit",
@@ -266,25 +329,15 @@ export default function App() {
         }}
         timeZone="Europe/Moscow"
         dateClick={(info) => {
-          setSelectedDate({
-            date: info.dateStr
-          });
+          openDay(info.dateStr);
         }}
         eventClick={(info) => {
           if (info.event.extendedProps?.all_day) {
-            supabase
-              .from("availability")
-              .delete()
-              .eq("note_id", info.event.extendedProps.note_id)
-              .then(() => loadCalendar());
-
+            openDay(info.event.startStr);
             return;
           }
 
-          toggleSlot(
-            info.event.extendedProps.date,
-            info.event.extendedProps.time
-          );
+          openDay(info.event.extendedProps.date);
         }} />
     </div>
   );

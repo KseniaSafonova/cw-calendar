@@ -31,3 +31,23 @@
   margin-top: 20px;
   margin-bottom: 20px;
 }
+
+@media (max-width: 768px) {
+
+  .times {
+    display: grid;
+    grid-template-columns: repeat(4, 92px);
+    gap: 10px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+
+  .button {
+    padding: 3px 6px;
+    font-size: 12px;
+    border-radius: 6px;
+    margin: 3px;
+    width: 87px;
+  }
+
+}
