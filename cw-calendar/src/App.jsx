@@ -37,8 +37,7 @@ export default function App() {
   }, [isMobile]);
 
   async function openDay(date) {
-    console.log("openDay start", date, dancer);
-
+    console.log("=== OPEN DAY START ===", date);
     if (!dancer) {
       console.log("Нет dancer");
       return;
