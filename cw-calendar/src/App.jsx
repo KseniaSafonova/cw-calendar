@@ -39,7 +39,7 @@ export default function App() {
   async function openDay(date) {
     console.log("=== OPEN DAY START ===", date);
     if (!dancer) {
-      console.log("Нет dancer");
+      alert("Кто здесь?");
       return;
     }
 
