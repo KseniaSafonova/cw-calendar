@@ -37,7 +37,7 @@
   .times {
     display: grid;
     grid-template-columns: repeat(4, 90px);
-    gap: 7px;
+    gap: 5px;
     margin-top: 20px;
     margin-bottom: 20px;
   }
@@ -48,6 +48,7 @@
     border-radius: 6px;
     margin: 3px;
     width: 80px;
+    color: black;
   }
 
 }
